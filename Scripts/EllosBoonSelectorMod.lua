@@ -507,7 +507,7 @@ end
 
 function RollSeedForFilters( screen, button )
   local roomReward = nil
-  local counter = 0
+  local counter = 1
   local seed = (NextSeeds[1] or 000000)
   repeat
     roomReward = PredictStartingRoomReward(seed + counter)
@@ -527,6 +527,60 @@ function RollSeedForFilters( screen, button )
   UpdateRewardPreview( screen, roomReward )
   SeedControlScreenSyncDigits( screen )
   UpdateDigitDisplay( screen )
+  if ParasDoorPredictions then
+    PredictC2Options( roomReward )
+  end
+end
+
+C2Offsets = { 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 }
+function PredictC2Options( roomReward )
+  local oldUses = ParasDoorPredictions.CurrentUses
+  local oldCurrentRun = CurrentRun
+  CurrentRun = StartNewRun()
+  CurrentRun.CurrentRoom.RewardStoreName = "RunProgress" -- C1 is always gold laurel
+  local roomData = RoomData[roomReward.SecondRoomName]
+  local door = {
+    Room = CreateRoom( roomData, { SkipChooseReward = true, SkipChooseEncounter = true } )
+  }
+  door.Room.ChosenRewardType = roomReward.SecondRoomReward
+  door.Room.RewardStoreName = roomReward.SecondRoomRewardStore
+  for _, uses in pairs(C2Offsets) do
+    RandomSynchronize(uses)
+    local prediction = PredictLoot(door)
+    if prediction.Encounter.SpawnWaves then
+      local summary = { Waves = 0, Enemies = {} }
+      for i, wave in pairs(prediction.Encounter.SpawnWaves) do
+        summary.Waves = summary.Waves + 1
+        for j, spawn in pairs(wave.Spawns) do
+          summary.Enemies[spawn.Name] = true
+        end
+      end
+      local enemyString = ""
+      for name, _ in pairs(summary.Enemies) do
+        if enemyString ~= "" then
+          enemyString = enemyString .. ", "
+        end
+        enemyString = enemyString .. name
+      end
+      print(summary.Waves, enemyString)
+    end
+    if prediction.NextExitRewards then
+      for k, reward in pairs(prediction.NextExitRewards) do
+        local rewardString = reward.RoomName .. " "
+        if reward.ForceLootName then
+          rewardString = rewardString .. reward.ForceLootName
+        else
+          rewardString = rewardString .. reward.RewardType
+        end
+        if reward.ChaosGate then
+          rewardString = rewardString .. " with Chaos Gate"
+        end
+        print(rewardString)
+      end
+    end
+  end
+  RandomSynchronize(oldUses) -- reset
+  CurrentRun = oldCurrentRun
 end
 
 function ClearFilters ( screen, button )
@@ -707,12 +761,9 @@ function IsSecondRoomRewardEligible(requirements, firstRoomReward)
   return true
 end
 
-function PredictSecondRoomReward(seedForPrediction, firstRoomReward, firstRoomShrine, secondRoomName)
+function PredictSecondRoomReward(seedForPrediction, firstRoomReward, firstRoomShrine, secondRoomName, rewardStore)
+  print(rewardStore)
   RandomSetNextInitSeed( {Seed = seedForPrediction} )
-  local rewardStore = "MetaProgress"
-  if firstRoomShrine or secondRoomName == "RoomSimple01" then
-    rewardStore = "RunProgress"
-  end
   local eligibleRewards = {}
   for key, reward in pairs(RewardStoreData[rewardStore]) do
     if IsSecondRoomRewardEligible(reward.GameStateRequirements, firstRoomReward) then
@@ -731,11 +782,14 @@ function PredictSecondRoomReward(seedForPrediction, firstRoomReward, firstRoomSh
   if firstRoomShrine then
     -- roll for the actual exit second
     RandomSynchronize(4)
+    local oldReward = reward
     selectedKey = GetRandomValue( eligibleRewards )
+    print(selectedKey)
     reward = RewardStoreData.RunProgress[selectedKey].Name
     if reward == "Boon" then
       reward = GetRandomValue( eligibleGods )
     end
+    print("Shrine:", oldReward, reward, secondRoomName)
   end
   return reward
 end
@@ -805,11 +859,18 @@ function PredictStartingRoomReward( seedForPrediction, currentSeed )
     "A_Combat24",
     "RoomSimple01"
   })
+
+  roomReward.SecondRoomRewardStore = "MetaProgress"
+  if roomReward.FirstRoomShrine or roomReward.SecondRoomName == "RoomSimple01" then
+    roomReward.SecondRoomRewardStore = "RunProgress"
+  end
+
   roomReward.SecondRoomReward = PredictSecondRoomReward(
     seedForPrediction,
     roomReward.Type,
     roomReward.FirstRoomShrine,
-    roomReward.SecondRoomName)
+    roomReward.SecondRoomName,
+    roomReward.SecondRoomRewardStore)
   return roomReward
 end
 
