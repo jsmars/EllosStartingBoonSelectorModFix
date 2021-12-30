@@ -562,7 +562,6 @@ function PredictC2Options( roomReward )
         end
         enemyString = enemyString .. name
       end
-      print(summary.Waves, enemyString)
     end
     if prediction.NextExitRewards then
       for k, reward in pairs(prediction.NextExitRewards) do
@@ -575,7 +574,6 @@ function PredictC2Options( roomReward )
         if reward.ChaosGate then
           rewardString = rewardString .. " with Chaos Gate"
         end
-        print(rewardString)
       end
     end
   end
@@ -762,7 +760,6 @@ function IsSecondRoomRewardEligible(requirements, firstRoomReward)
 end
 
 function PredictSecondRoomReward(seedForPrediction, firstRoomReward, firstRoomShrine, secondRoomName, rewardStore)
-  print(rewardStore)
   RandomSetNextInitSeed( {Seed = seedForPrediction} )
   local eligibleRewards = {}
   for key, reward in pairs(RewardStoreData[rewardStore]) do
@@ -784,12 +781,10 @@ function PredictSecondRoomReward(seedForPrediction, firstRoomReward, firstRoomSh
     RandomSynchronize(4)
     local oldReward = reward
     selectedKey = GetRandomValue( eligibleRewards )
-    print(selectedKey)
     reward = RewardStoreData.RunProgress[selectedKey].Name
     if reward == "Boon" then
       reward = GetRandomValue( eligibleGods )
     end
-    print("Shrine:", oldReward, reward, secondRoomName)
   end
   return reward
 end
