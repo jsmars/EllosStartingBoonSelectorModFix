@@ -770,7 +770,6 @@ function PredictSecondRoomReward(seedForPrediction, firstRoomReward, firstRoomSh
     -- remove C1 reward
     RandomSynchronize(4) -- Known offset at which the RNG rolls reward type
     local selectedKey = GetRandomValue({5,6,7,10})
-    print("remove c1", selectedKey)
     rewardStore[selectedKey] = nil
   end
   local firstRoomShrineReward = nil
