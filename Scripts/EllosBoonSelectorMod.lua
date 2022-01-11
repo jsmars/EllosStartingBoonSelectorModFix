@@ -527,58 +527,6 @@ function RollSeedForFilters( screen, button )
   UpdateRewardPreview( screen, roomReward )
   SeedControlScreenSyncDigits( screen )
   UpdateDigitDisplay( screen )
-  if ParasDoorPredictions then
-    PredictC2Options( roomReward )
-  end
-end
-
-C2Offsets = { 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 }
-function PredictC2Options( roomReward )
-  local oldUses = ParasDoorPredictions.CurrentUses
-  local oldCurrentRun = CurrentRun
-  CurrentRun = StartNewRun()
-  CurrentRun.CurrentRoom.RewardStoreName = "RunProgress" -- C1 is always gold laurel
-  local roomData = RoomData[roomReward.SecondRoomName]
-  local door = {
-    Room = CreateRoom( roomData, { SkipChooseReward = true, SkipChooseEncounter = true } )
-  }
-  door.Room.ChosenRewardType = roomReward.SecondRoomReward
-  door.Room.RewardStoreName = roomReward.SecondRoomRewardStore
-  for _, uses in pairs(C2Offsets) do
-    RandomSynchronize(uses)
-    local prediction = PredictLoot(door)
-    if prediction.Encounter.SpawnWaves then
-      local summary = { Waves = 0, Enemies = {} }
-      for i, wave in pairs(prediction.Encounter.SpawnWaves) do
-        summary.Waves = summary.Waves + 1
-        for j, spawn in pairs(wave.Spawns) do
-          summary.Enemies[spawn.Name] = true
-        end
-      end
-      local enemyString = ""
-      for name, _ in pairs(summary.Enemies) do
-        if enemyString ~= "" then
-          enemyString = enemyString .. ", "
-        end
-        enemyString = enemyString .. name
-      end
-    end
-    if prediction.NextExitRewards then
-      for k, reward in pairs(prediction.NextExitRewards) do
-        local rewardString = reward.RoomName .. " "
-        if reward.ForceLootName then
-          rewardString = rewardString .. reward.ForceLootName
-        else
-          rewardString = rewardString .. reward.RewardType
-        end
-        if reward.ChaosGate then
-          rewardString = rewardString .. " with Chaos Gate"
-        end
-      end
-    end
-  end
-  RandomSynchronize(oldUses) -- reset
-  CurrentRun = oldCurrentRun
 end
 
 function ClearFilters ( screen, button )
