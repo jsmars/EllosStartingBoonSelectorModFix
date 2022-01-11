@@ -507,7 +507,7 @@ end
 
 function RollSeedForFilters( screen, button )
   local roomReward = nil
-  local counter = 0
+  local counter = 1
   local seed = (NextSeeds[1] or 000000)
   repeat
     roomReward = PredictStartingRoomReward(seed + counter)
@@ -689,7 +689,10 @@ function CloseSeedControlScreen( screen, button )
 end
 
 function IsSecondRoomRewardEligible(requirements, firstRoomReward)
-  if requirements.RequiredUpgradeableGodTraits ~= nil and requirements.RequiredUpgradeableGodTraits >= 1 and firstRoomReward ~= "Boon" then
+  if requirements.RequiredUpgradeableGodTraits ~= nil and requirements.RequiredUpgradeableGodTraits >= 2 then
+    return false
+  end
+  if requirements.RequiredUpgradeableGodTraits ~= nil and requirements.RequiredUpgradeableGodTraits == 1 and firstRoomReward ~= "Boon" then
     return false
   end
   if requirements.RequiredMaxWeaponUpgrades ~= nil and requirements.RequiredMaxWeaponUpgrades < 1 and firstRoomReward == "Hammer" then
@@ -707,35 +710,47 @@ function IsSecondRoomRewardEligible(requirements, firstRoomReward)
   return true
 end
 
-function PredictSecondRoomReward(seedForPrediction, firstRoomReward, firstRoomShrine, secondRoomName)
+function PredictSecondRoomReward(seedForPrediction, firstRoomReward, firstRoomShrine, secondRoomName, rewardStoreName)
+  local rewardStore  = DeepCopyTable(RewardStoreData[rewardStoreName])
+  local eligibleGods = DeepCopyTable(EllosBoonSelectorMod.BoonGods)
   RandomSetNextInitSeed( {Seed = seedForPrediction} )
-  local rewardStore = "MetaProgress"
-  if firstRoomShrine or secondRoomName == "RoomSimple01" then
-    rewardStore = "RunProgress"
+  if rewardStoreName == "RunProgress" then
+    -- remove C1 reward
+    RandomSynchronize(4) -- Known offset at which the RNG rolls reward type
+    local selectedKey = GetRandomValue({5,6,7,10})
+    rewardStore[selectedKey] = nil
   end
+  local firstRoomShrineReward = nil
+  if firstRoomShrine then
+    local eligibleRewards = {}
+    -- first remove the entry for the erebus gate
+    for key, reward in pairs(rewardStore) do
+      if IsSecondRoomRewardEligible(reward.GameStateRequirements, firstRoomReward) and
+         reward.Name ~= "WeaponUpgrade" then -- Erebus gates can't have hammers
+        table.insert(eligibleRewards, key)
+      end
+    end
+    RandomSynchronize(4)
+    local selectedKey = GetRandomValue( eligibleRewards )
+    if rewardStore[selectedKey].Name == "Boon" then
+      RemoveValueAndCollapse( eligibleGods, GetRandomValue( eligibleGods ) )
+    end
+    firstRoomShrineReward = rewardStore[selectedKey].Name
+    rewardStore[selectedKey] = nil
+  end
+  -- then handle the normal exit
   local eligibleRewards = {}
-  for key, reward in pairs(RewardStoreData[rewardStore]) do
-    if IsSecondRoomRewardEligible(reward.GameStateRequirements, firstRoomReward) then
+  for key, reward in pairs(rewardStore) do
+    if IsSecondRoomRewardEligible(reward.GameStateRequirements, firstRoomReward) and
+      (reward.AllowDuplicates or reward.Name ~= firstRoomShrineReward) then
       table.insert(eligibleRewards, key)
     end
   end
   RandomSynchronize(4)
   local selectedKey = GetRandomValue( eligibleRewards )
-  local reward = RewardStoreData[rewardStore][selectedKey].Name
-  RemoveValueAndCollapse( eligibleRewards, selectedKey )
-  local eligibleGods = DeepCopyTable(EllosBoonSelectorMod.BoonGods)
+  local reward = rewardStore[selectedKey].Name
   if reward == "Boon" then
     reward = GetRandomValue( eligibleGods )
-    RemoveValueAndCollapse( eligibleGods, reward )
-  end
-  if firstRoomShrine then
-    -- roll for the actual exit second
-    RandomSynchronize(4)
-    selectedKey = GetRandomValue( eligibleRewards )
-    reward = RewardStoreData.RunProgress[selectedKey].Name
-    if reward == "Boon" then
-      reward = GetRandomValue( eligibleGods )
-    end
   end
   return reward
 end
@@ -805,11 +820,18 @@ function PredictStartingRoomReward( seedForPrediction, currentSeed )
     "A_Combat24",
     "RoomSimple01"
   })
+
+  roomReward.SecondRoomRewardStore = "MetaProgress"
+  if roomReward.FirstRoomShrine or roomReward.SecondRoomName == "RoomSimple01" then
+    roomReward.SecondRoomRewardStore = "RunProgress"
+  end
+
   roomReward.SecondRoomReward = PredictSecondRoomReward(
     seedForPrediction,
     roomReward.Type,
     roomReward.FirstRoomShrine,
-    roomReward.SecondRoomName)
+    roomReward.SecondRoomName,
+    roomReward.SecondRoomRewardStore)
   return roomReward
 end
 
