@@ -55,13 +55,13 @@ Modified version of SeedControlScreen.lua
 ]]
 ScreenData.SeedControl =
 {
-  ItemStartX = 1400,
+  ItemStartX = 1420,
   ItemStartY = 560,
-  ItemSpacing = 100,
+  ItemSpacing = 65,
   EntryYSpacer = 50,
   ItemsPerPage = 12,
   ScrollOffset = 0,
-  Digits = { 1, 2, 3, 4, 5, 6 },
+  Digits = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 },
 }
 
 function OpenRngSeedSelectorScreen(screen, button)
